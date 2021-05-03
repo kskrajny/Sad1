@@ -11,6 +11,8 @@ library(ggplot2)
 library(dplyr)
 library(nonpar)
 library(reshape2)
+library(boot)
+library(rstatix)
 options(dplyr.summarise.inform = FALSE)
 ```
 
@@ -60,11 +62,38 @@ t.test(data$height, mu=170)
 mediantest(x=data$height, y=c(165,165))
 ```
 
-3 4
+# 4
 ```{r}
-mu <- mean(data$age)
-sigma <- sd(data$age)
-n <- length(data$age)
-round(mu+c(-1,1)*sigma/sqrt(n)*qnorm(.995),2)
-round(sigma/(1+qnorm(c(.995,.005))/sqrt(2*n)),2)
+# przedział ufności dla średniej
+Mboot = boot(data$age, function(x,i) mean(x[i]), R=500)
+boot.ci(Mboot, conf = 0.99, type = c("norm", "basic" ,"perc", "bca"))
+# przedział ufności dla odchylenia standardowego
+Mboot = boot(data$age, function(x,i) sd(x[i]), R=500)
+boot.ci(Mboot, conf = 0.99, type = c("norm", "basic" ,"perc", "bca"))
+# przedział ufności dla mediany
+Mboot = boot(data$age, function(x,i) median(x[i]), R=500)
+boot.ci(Mboot, conf = 0.99, type = c("norm", "basic" ,"perc", "bca"))
+# przedział ufności dla kwantyla 0.25
+Mboot = boot(data$age, function(x,i) quantile(x[i], c(0.25)), R=500)
+boot.ci(Mboot, conf = 0.99, type = c("norm", "basic" ,"perc", "bca"))
+# przedział ufności dla kwantyla 0.75
+Mboot = boot(data$age, function(x,i) quantile(x[i], c(0.75)), R=500)
+boot.ci(Mboot, conf = 0.99, type = c("norm", "basic" ,"perc", "bca"))
 ```
+
+# 5
+```{r}
+data_man <- subset(data, gender=="man")
+data_woman <- subset(data, gender=="woman")
+t.test(data_man$number_of_kids, data_woman$number_of_kids, conf.level = 0.99)
+```
+Test wskazuje na to, że średnia ilości dzieci mężczyzn nie jest równa średniej ilości dzieci kobiet(dla poziomu istotności 0.01).
+```{r}
+cor.test(data$age, data$expenses, alternative = c("two.sided"), method = c("pearson"), conf.level = 0.99)
+chisq.test(data$married, data$gender)
+```
+
+```{r}
+shapiro_test(data$expenses)
+```
+test wskazuje, że dane nie pochodzą z rozkładu normalnego
