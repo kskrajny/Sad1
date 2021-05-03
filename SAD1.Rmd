@@ -1,0 +1,70 @@
+---
+title: "SAD2021 - projekt 1"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(corrplot)
+library(RColorBrewer)
+library(ggplot2)
+library(dplyr)
+library(nonpar)
+library(reshape2)
+options(dplyr.summarise.inform = FALSE)
+```
+
+# 1
+500 obserwacji. \\
+5 z 8 zmiennych to zmienne ilościowe. \\
+Dane są kompletne. \\
+```{r}
+data <- read.table("data.csv", sep="\t", header=TRUE)
+head(data)
+which(is.na(data))
+```
+
+# Dependencies between variables
+```{r}
+data_num <- Filter(is.numeric, data)
+cor_num <- cor(data_num)
+corrplot(cor_num, type="upper", order="hclust",
+         col=brewer.pal(n=8, name="RdYlBu"))
+```
+
+```{r}
+data_desc <- Filter(function(x) ! is.numeric(x), data)
+chisq.test(data_desc$pet, data_desc$married)
+chisq.test(data_desc$married, data_desc$gender)
+chisq.test(data_desc$gender, data_desc$pet)
+```
+Zmienne ilościowe są słabo skorelowane ze sobą. \\
+Nie ma podstaw aby odrzucić hipotezę o niezależności zmiennych jakościowych. \\
+
+# 2
+```{r}
+for (i in colnames(data_num)){
+  if (i != "expenses") {
+      plot(data_num[[i]], data_num$expenses, xlab=i, ylab="expenses")
+  }
+}
+boxplot(expenses~number_of_kids, data=data, xlab="number of kids", ylab="expenses")
+data_bar <- data %>% group_by(pet) %>% summarise(across(expenses, sum))
+data_bar
+barplot(height=data_bar$expenses, names.arg=data_bar$pet, xlab="pet", ylab="expenses")
+```
+# 3
+
+```{r}
+t.test(data$height, mu=170)
+mediantest(x=data$height, y=c(165,165))
+```
+
+3 4
+```{r}
+mu <- mean(data$age)
+sigma <- sd(data$age)
+n <- length(data$age)
+round(mu+c(-1,1)*sigma/sqrt(n)*qnorm(.995),2)
+round(sigma/(1+qnorm(c(.995,.005))/sqrt(2*n)),2)
+```
