@@ -1,6 +1,8 @@
 ---
 title: "SAD2021 - projekt 1"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -13,73 +15,101 @@ library(nonpar)
 library(reshape2)
 library(boot)
 library(rstatix)
+library(caret)
 options(dplyr.summarise.inform = FALSE)
 ```
 
 # 1
-500 obserwacji. \\
-5 z 8 zmiennych to zmienne ilościowe. \\
-Dane są kompletne. \\
+## Wczytujemy dane
 ```{r}
 data <- read.table("data.csv", sep="\t", header=TRUE)
 head(data)
 which(is.na(data))
 ```
+Mamy 500 obserwacji. Pięć z ośmiorga zmiennych to zmienne ilościowe. Dane są kompletne.
 
-# Dependencies between variables
+## Zależności między zmiennymi ilościowymi
 ```{r}
 data_num <- Filter(is.numeric, data)
 cor_num <- cor(data_num)
 corrplot(cor_num, type="upper", order="hclust",
          col=brewer.pal(n=8, name="RdYlBu"))
 ```
+<br /> Na podstawie powyższej grafiki widzimy, że jedyne dobrze skorelowane pary zmiennych, to  'age' z 'expenses' oraz 'height' z 'weight'.
 
+## Zależności między zmiennymi jakościowymi
 ```{r}
-data_desc <- Filter(function(x) ! is.numeric(x), data)
-chisq.test(data_desc$pet, data_desc$married)
-chisq.test(data_desc$married, data_desc$gender)
-chisq.test(data_desc$gender, data_desc$pet)
+chisq.test(data$pet, data$married)
+chisq.test(data$married, data$gender)
+chisq.test(data$gender, data$pet)
 ```
-Zmienne ilościowe są słabo skorelowane ze sobą. \\
-Nie ma podstaw aby odrzucić hipotezę o niezależności zmiennych jakościowych. \\
+Nie ma podstaw aby odrzucić hipotezę o niezależności zmiennych jakościowych.
 
 # 2
+## Scatter-plot ze zmiennymi ilościowymi 
 ```{r}
 for (i in colnames(data_num)){
   if (i != "expenses") {
       plot(data_num[[i]], data_num$expenses, xlab=i, ylab="expenses")
   }
 }
+```
+
+## Boxplot ze zmienną ilościową
+```{r}
 boxplot(expenses~number_of_kids, data=data, xlab="number of kids", ylab="expenses")
+```
+
+## Barplot ze zmienną jakościową
+```{r}
 data_bar <- data %>% group_by(pet) %>% summarise(across(expenses, sum))
 data_bar
 barplot(height=data_bar$expenses, names.arg=data_bar$pet, xlab="pet", ylab="expenses")
 ```
-# 3
 
+# 3
+## P value dla średniej
 ```{r}
+m<-mean(data$height)
+std<-sd(data$height)
+hist(data$height, density=20, breaks=20, prob=TRUE, main="normal curve over histogram")
+curve(dnorm(x, mean=m, sd=std), 
+      col="darkblue", lwd=2, add=TRUE, yaxt="n")
 t.test(data$height, mu=170)
+```
+Test odrzuca hipotezę zerową. Zakładam, że zmienna 'height' pochodzi z rozkładu normalnego. To założenie wydaje się być uprawnione. Pokazuje to wykres rozkładu normalnego na tle histogramu.  
+
+## P value dla mediany
+```{r}
 mediantest(x=data$height, y=c(165,165))
 ```
+Nie ma podstaw do odrzucenia hipotezy zerowej.
 
 # 4
 ```{r}
+m<-mean(data$age)
+std<-sd(data$age)
+hist(data$age, density=20, breaks=20, prob=TRUE, main="normal curve over histogram")
+curve(dnorm(x, mean=m, sd=std), 
+      col="darkblue", lwd=2, add=TRUE, yaxt="n")
 # przedział ufności dla średniej
-Mboot = boot(data$age, function(x,i) mean(x[i]), R=500)
-boot.ci(Mboot, conf = 0.99, type = c("norm", "basic" ,"perc", "bca"))
+Mboot = boot(data$age, function(x,i) mean(x[i]), R=5000)
+boot.ci(Mboot, conf = 0.99, type = c("norm", "basic" ,"perc"))
 # przedział ufności dla odchylenia standardowego
-Mboot = boot(data$age, function(x,i) sd(x[i]), R=500)
-boot.ci(Mboot, conf = 0.99, type = c("norm", "basic" ,"perc", "bca"))
+Mboot = boot(data$age, function(x,i) sd(x[i]), R=5000)
+boot.ci(Mboot, conf = 0.99, type = c("norm", "basic" ,"perc"))
 # przedział ufności dla mediany
-Mboot = boot(data$age, function(x,i) median(x[i]), R=500)
-boot.ci(Mboot, conf = 0.99, type = c("norm", "basic" ,"perc", "bca"))
+Mboot = boot(data$age, function(x,i) median(x[i]), R=5000)
+boot.ci(Mboot, conf = 0.99, type = c("norm", "basic" ,"perc"))
 # przedział ufności dla kwantyla 0.25
-Mboot = boot(data$age, function(x,i) quantile(x[i], c(0.25)), R=500)
-boot.ci(Mboot, conf = 0.99, type = c("norm", "basic" ,"perc", "bca"))
+Mboot = boot(data$age, function(x,i) quantile(x[i], c(0.25)), R=5000)
+boot.ci(Mboot, conf = 0.99, type = c("norm", "basic" ,"perc"))
 # przedział ufności dla kwantyla 0.75
-Mboot = boot(data$age, function(x,i) quantile(x[i], c(0.75)), R=500)
-boot.ci(Mboot, conf = 0.99, type = c("norm", "basic" ,"perc", "bca"))
+Mboot = boot(data$age, function(x,i) quantile(x[i], c(0.75)), R=5000)
+boot.ci(Mboot, conf = 0.99, type = c("norm", "basic" ,"perc"))
 ```
+Założenia zależą od przyjętej metody. Używając metody "norm" należy założyć, że rozkład zmiennej jest bliski do normalnego. Używając "basic" należy się pogodzić z pewnymi niedokładnościamy, w szczególności, gdy rozkład jest "dziwny". Uzywając metody "perc" należy założyć, że próba zmiennej X, którą dysponujemy, ma bardzo podobny rozkład do X.
+Założenie, że dane pochodzą z rozkładu normalnego wydaje mi się lekko naciągane (gyby przeprowadzić test, to w zależności od przyjętego poziomu istotności otrzymamy różne wyniki). Natomiast uważam, że dana próbka danych jest reprezentatywna.
 
 # 5
 ```{r}
@@ -90,10 +120,44 @@ t.test(data_man$number_of_kids, data_woman$number_of_kids, conf.level = 0.99)
 Test wskazuje na to, że średnia ilości dzieci mężczyzn nie jest równa średniej ilości dzieci kobiet(dla poziomu istotności 0.01).
 ```{r}
 cor.test(data$age, data$expenses, alternative = c("two.sided"), method = c("pearson"), conf.level = 0.99)
+```
+Test wskazuje na to, że zmienne są ze sobą skorelowane.
+```{r}
 chisq.test(data$married, data$gender)
 ```
+Nie ma podstaw do odrzucenia hipotezy zerowej o niezależności danych.
 
 ```{r}
+m<-mean(data$expenses)
+std<-sd(data$expenses)
+hist(data$expenses, density=20, breaks=20, prob=TRUE, main="normal curve over histogram")
+curve(dnorm(x, mean=m, sd=std), 
+      col="darkblue", lwd=2, add=TRUE, yaxt="n")
 shapiro_test(data$expenses)
 ```
-test wskazuje, że dane nie pochodzą z rozkładu normalnego
+Test wskazuje, że dane nie pochodzą z rozkładu normalnego. Natomiast na wykresie widać pewne podobieństwo (podobnie jak w przy zmiennej "age").
+
+# 6
+```{r}
+dmy <- dummyVars(" ~ .", data = data, fullRank = T)
+data_transformed <- data.frame(predict(dmy, newdata = data))
+glimpse(data_transformed)
+model <- lm(expenses ~ ., data = data_transformed)
+summary(model)
+#RSS and sqrt(RSS / n)
+sum(model$residuals^2)
+sqrt(sum(model$residuals^2) / length(data$expenses))
+hist(model$residuals, breaks=80, main="błędy modelu")
+hist(data$expenses, breaks=60, main="wydatki")
+```
+Model nie jest zbyt dokładny, ale daje szanse na przybliżenie wydatków. \\
+Na podstawie p-wartości opisujących zmienne używane przez model odrzucam marriedTrue.
+```{r}
+model <- lm(expenses ~ . - marriedTRUE, data = data_transformed)
+summary(model)
+#RSS and sqrt(RSS / n)
+sum(model$residuals^2)
+sqrt(sum(model$residuals^2) / length(data$expenses))
+hist(model$residuals, breaks=80, main="błędy modelu")
+```
+Widzimy, że model nieuwzględniający stanu cywilnego jest nieznacznie gorszy od modely uwzgędniającego wszystkie dane którymi dysponujemy.
