@@ -1,8 +1,9 @@
 ---
 title: "SAD2021 - projekt 1"
+author: Jakub Skrajny
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
